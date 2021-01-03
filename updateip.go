@@ -103,6 +103,9 @@ func main() {
 	log.Println("my ip is", ip)
 
 	for _, domain := range config.Domains {
-		updateDomain(domain, ip)
+		err := updateDomain(domain, ip)
+		if err != nil {
+			log.Println(err)
+		}
 	}
 }
