@@ -13,7 +13,6 @@ import (
 )
 
 type Config struct {
-	User    string
 	Domains []string
 	ApiKey  string
 }
@@ -52,8 +51,7 @@ func updateDomain(domain string, ip net.IP) error {
 		return err
 	}
 
-	records, err := api.DNSRecords(zoneID,
-		cloudflare.DNSRecord{Name: domain, Type: "A"})
+	records, err := api.DNSRecords(zoneID, cloudflare.DNSRecord{Name: domain, Type: "A"})
 	if err != nil {
 		return err
 	}
