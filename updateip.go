@@ -13,9 +13,9 @@ import (
 )
 
 type Config struct {
-	User   string
-	Domain string
-	ApiKey string
+	User    string
+	Domains []string
+	ApiKey  string
 }
 
 var config Config
@@ -107,5 +107,7 @@ func main() {
 
 	log.Println("my ip is", ip)
 
-	updateDomain(config.Domain, ip)
+	for _, domain := range config.Domains {
+		updateDomain(domain, ip)
+	}
 }
