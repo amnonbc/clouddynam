@@ -52,18 +52,13 @@ func updateDomain(domain string, ip net.IP) error {
 		return err
 	}
 
-	records, err := api.DNSRecords(zoneID, cloudflare.DNSRecord{})
+	records, err := api.DNSRecords(zoneID,
+		cloudflare.DNSRecord{Name: domain, Type: "A"})
 	if err != nil {
 		return err
 	}
 
 	for _, r := range records {
-		if r.Type != "A" {
-			continue
-		}
-		if r.Name != domain {
-			continue
-		}
 		if r.Content == ip.String() {
 			log.Println("Ip for", r.Name, "already is set as", ip)
 			continue
