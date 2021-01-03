@@ -12,13 +12,12 @@ import (
 )
 
 type Config struct {
-	User string
+	User   string
 	Domain string
 	ApiKey string
 }
 
 var config Config
-
 
 type ipMsg struct {
 	Ip net.IP
@@ -98,7 +97,6 @@ func main() {
 		log.Fatal(err)
 	}
 
-	json.NewEncoder(os.Stdout).Encode(config)
 	ip, err := myIP()
 	if err != nil {
 		log.Fatal(err)
