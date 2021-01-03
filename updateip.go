@@ -44,20 +44,16 @@ func myIP() (net.IP, error) {
 func updateDomain(domain string, ip net.IP) error {
 	api, err := cloudflare.New(config.ApiKey, config.User)
 	if err != nil {
-		fmt.Println(err)
-		return err
-	}
-	// Fetch the zone ID for zone example.org
-	zoneID, err := api.ZoneIDByName(domain)
-	if err != nil {
-		fmt.Println(err)
 		return err
 	}
 
-	// Fetch all DNS records for example.org
+	zoneID, err := api.ZoneIDByName(domain)
+	if err != nil {
+		return err
+	}
+
 	records, err := api.DNSRecords(zoneID, cloudflare.DNSRecord{})
 	if err != nil {
-		fmt.Println(err)
 		return err
 	}
 
@@ -75,7 +71,6 @@ func updateDomain(domain string, ip net.IP) error {
 		r.Content = ip.String()
 		err := api.UpdateDNSRecord(zoneID, r.ID, r)
 		if err != nil {
-			log.Println(err)
 			return err
 		}
 		log.Println("Set", domain, "to", ip)
