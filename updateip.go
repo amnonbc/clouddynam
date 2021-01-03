@@ -42,7 +42,7 @@ func myIP() (net.IP, error) {
 }
 
 func updateDomain(domain string, ip net.IP) error {
-	api, err := cloudflare.New(config.ApiKey, config.User)
+	api, err := cloudflare.NewWithAPIToken(config.ApiKey)
 	if err != nil {
 		return err
 	}
