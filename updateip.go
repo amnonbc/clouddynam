@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"log"
 	"net"
@@ -82,8 +83,8 @@ func updateDomain(domain string, ip net.IP) error {
 	return nil
 }
 
-func loadConfig() error {
-	f, err := os.Open("config.json")
+func loadConfig(fn string) error {
+	f, err := os.Open(fn)
 	if err != nil {
 		return err
 	}
@@ -92,7 +93,9 @@ func loadConfig() error {
 }
 
 func main() {
-	err := loadConfig()
+	cf := flag.String("cfg", "config.json", "config file")
+	flag.Parse()
+	err := loadConfig(*cf)
 	if err != nil {
 		log.Fatal(err)
 	}
