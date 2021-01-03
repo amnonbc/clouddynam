@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"os"
 
-	cloudflare "github.com/cloudflare/cloudflare-go"
+	"github.com/cloudflare/cloudflare-go"
 )
 
 type Config struct {
