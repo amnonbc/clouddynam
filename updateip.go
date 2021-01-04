@@ -19,10 +19,7 @@ type Config struct {
 
 var config Config
 
-type ipMsg struct {
-	Ip net.IP
-}
-
+// myIP returns the callers current public IP.
 func myIP() (net.IP, error) {
 	r, err := http.Get("https://api.ipify.org?format=json")
 	if err != nil {
@@ -32,7 +29,9 @@ func myIP() (net.IP, error) {
 		return nil, fmt.Errorf("attempt to get my IP returned %s", r.Status)
 	}
 	defer r.Body.Close()
-	var msg ipMsg
+	var msg struct {
+		Ip net.IP
+	}
 	err = json.NewDecoder(r.Body).Decode(&msg)
 	if err != nil {
 		return nil, err
@@ -40,6 +39,7 @@ func myIP() (net.IP, error) {
 	return msg.Ip, nil
 }
 
+// updateDomain updates the DNS A record for domain to point to ip.
 func updateDomain(domain string, ip net.IP) error {
 	api, err := cloudflare.NewWithAPIToken(config.ApiKey)
 	if err != nil {
