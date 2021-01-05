@@ -20,8 +20,12 @@ type Config struct {
 var config Config
 
 // myIP returns the callers current public IP.
-func myIP() (net.IP, error) {
-	r, err := http.Get("https://api.ipify.org?format=json")
+func myIP(ipv6 bool) (net.IP, error) {
+	u := "https://api.ipify.org?format=json"
+	if ipv6 {
+		u = "https://api64.ipify.org?format=json"
+	}
+	r, err := http.Get(u)
 	if err != nil {
 		return nil, err
 	}
@@ -40,7 +44,7 @@ func myIP() (net.IP, error) {
 }
 
 // updateDomain updates the DNS A record for domain to point to ip.
-func updateDomain(domain string, ip net.IP) error {
+func updateDomain(domain string, recordType string, ip net.IP) error {
 	api, err := cloudflare.NewWithAPIToken(config.ApiKey)
 	if err != nil {
 		return err
@@ -51,7 +55,7 @@ func updateDomain(domain string, ip net.IP) error {
 		return err
 	}
 
-	records, err := api.DNSRecords(zoneID, cloudflare.DNSRecord{Name: domain, Type: "A"})
+	records, err := api.DNSRecords(zoneID, cloudflare.DNSRecord{Name: domain, Type: recordType})
 	if err != nil {
 		return err
 	}
@@ -88,17 +92,26 @@ func main() {
 		log.Fatal(err)
 	}
 
-	ip, err := myIP()
+	ipv4, err := myIP(false)
+	if err != nil {
+		log.Fatal(err)
+	}
+	ipv6, err := myIP(true)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	log.Println("my ip is", ip)
+	log.Println("my ip is", ipv4, ipv6)
 
 	for _, domain := range config.Domains {
-		err := updateDomain(domain, ip)
+		err := updateDomain(domain, "A", ipv4)
 		if err != nil {
 			log.Println(err)
 		}
+		err = updateDomain(domain, "AAAA", ipv6)
+		if err != nil {
+			log.Println(err)
+		}
+
 	}
 }
