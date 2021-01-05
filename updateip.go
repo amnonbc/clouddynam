@@ -19,12 +19,13 @@ type Config struct {
 
 var config Config
 
+const (
+	ipv4info = "https://api.ipify.org?format=json"
+	ipv6info = "https://api64.ipify.org?format=json"
+)
+
 // myIP returns the callers current public IP.
-func myIP(ipv6 bool) (net.IP, error) {
-	u := "https://api.ipify.org?format=json"
-	if ipv6 {
-		u = "https://api64.ipify.org?format=json"
-	}
+func myIP(u string) (net.IP, error) {
 	r, err := http.Get(u)
 	if err != nil {
 		return nil, err
@@ -92,11 +93,11 @@ func main() {
 		log.Fatal(err)
 	}
 
-	ipv4, err := myIP(false)
+	ipv4, err := myIP(ipv4info)
 	if err != nil {
 		log.Fatal(err)
 	}
-	ipv6, err := myIP(true)
+	ipv6, err := myIP(ipv6info)
 	if err != nil {
 		log.Fatal(err)
 	}
