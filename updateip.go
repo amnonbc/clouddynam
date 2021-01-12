@@ -66,6 +66,8 @@ func updateDomain(domain string, recordType string, ip net.IP) error {
 			log.Println("Ip for", r.Name, "already is set as", ip)
 			continue
 		}
+		log.Printf("Ip needs updating, currently %q, need to set to %q", r.Content, ip)
+
 		r.Content = ip.String()
 		err := api.UpdateDNSRecord(zoneID, r.ID, r)
 		if err != nil {
