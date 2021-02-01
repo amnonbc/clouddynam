@@ -63,7 +63,6 @@ func updateDomain(domain string, recordType string, ip net.IP) error {
 
 	for _, r := range records {
 		if r.Content == ip.String() {
-			log.Println("Ip for", r.Name, "already is set as", ip)
 			continue
 		}
 		log.Printf("Ip needs updating, currently %q, need to set to %q", r.Content, ip)
