@@ -45,7 +45,7 @@ func myIP(u string) (net.IP, error) {
 }
 
 // updateDomain updates the DNS A record for domain to point to ip.
-func updateDomain(domain string, recordType string, ip net.IP) error {
+func updateDomain(domain, recordType string, ip net.IP) error {
 	api, err := cloudflare.NewWithAPIToken(config.ApiKey)
 	if err != nil {
 		return err
