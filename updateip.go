@@ -86,6 +86,10 @@ func loadConfig(fn string) error {
 	return json.NewDecoder(f).Decode(&config)
 }
 
+func isIpv4(a net.IP) bool {
+	return a.To4() != nil
+}
+
 func main() {
 	cf := flag.String("cfg", "config.json", "config file")
 	flag.Parse()
@@ -98,9 +102,16 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	if !isIpv4(ipv4) {
+		log.Fatalln(ipv4, "is not an ipv4 address")
+	}
+
 	ipv6, err := myIP(ipv6info)
 	if err != nil {
 		log.Fatal(err)
+	}
+	if isIpv4(ipv6) {
+		log.Fatalln(ipv6, "is not an ipv6 address")
 	}
 
 	log.Println("my ip is", ipv4, ipv6)
