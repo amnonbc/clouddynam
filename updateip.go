@@ -5,8 +5,8 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"net"
 	"net/http"
+	"net/netip"
 	"os"
 
 	"github.com/cloudflare/cloudflare-go"
@@ -25,27 +25,27 @@ const (
 )
 
 // myIP returns the callers current public IP.
-func myIP(u string) (net.IP, error) {
+func myIP(u string) (ip netip.Addr, err error) {
 	r, err := http.Get(u)
 	if err != nil {
-		return nil, err
+		return ip, err
 	}
 	if r.StatusCode != 200 {
-		return nil, fmt.Errorf("attempt to get my IP returned %s", r.Status)
+		return ip, fmt.Errorf("attempt to get my IP returned %s", r.Status)
 	}
 	defer r.Body.Close()
 	var msg struct {
-		Ip net.IP
+		Ip netip.Addr
 	}
 	err = json.NewDecoder(r.Body).Decode(&msg)
 	if err != nil {
-		return nil, err
+		return ip, err
 	}
 	return msg.Ip, nil
 }
 
 // updateDomain updates the DNS A record for domain to point to ip.
-func updateDomain(domain, recordType string, ip net.IP) error {
+func updateDomain(domain, recordType string, ip netip.Addr) error {
 	api, err := cloudflare.NewWithAPIToken(config.ApiKey)
 	if err != nil {
 		return err
@@ -86,10 +86,6 @@ func loadConfig(fn string) error {
 	return json.NewDecoder(f).Decode(&config)
 }
 
-func isIpv4(a net.IP) bool {
-	return a.To4() != nil
-}
-
 func main() {
 	cf := flag.String("cfg", "config.json", "config file")
 	flag.Parse()
@@ -102,7 +98,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	if !isIpv4(ipv4) {
+	if !ipv4.Is4() {
 		log.Fatalln(ipv4, "is not an ipv4 address")
 	}
 
@@ -110,7 +106,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	if isIpv4(ipv6) {
+	if !ipv6.Is6() {
 		log.Fatalln(ipv6, "is not an ipv6 address")
 	}
 
