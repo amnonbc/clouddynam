@@ -1,6 +1,6 @@
 module github.com/amnonbc/clouddynam
 
-go 1.19
+go 1.25.1
 
 require (
 	github.com/cloudflare/cloudflare-go v0.13.6
