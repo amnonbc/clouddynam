@@ -1,13 +1,15 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"net/netip"
 	"os"
+	"time"
 
 	"github.com/cloudflare/cloudflare-go"
 )
@@ -17,23 +19,27 @@ type Config struct {
 	ApiKey  string
 }
 
-var config Config
-
 const (
 	ipv4info = "https://api.ipify.org?format=json"
 	ipv6info = "https://api64.ipify.org?format=json"
 )
 
-// myIP returns the callers current public IP.
-func myIP(u string) (ip netip.Addr, err error) {
-	r, err := http.Get(u)
+var httpClient = &http.Client{Timeout: 10 * time.Second}
+
+// myIP returns the caller's current public IP.
+func myIP(ctx context.Context, u string) (ip netip.Addr, err error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 	if err != nil {
 		return ip, err
 	}
-	if r.StatusCode != 200 {
-		return ip, fmt.Errorf("attempt to get my IP returned %s", r.Status)
+	r, err := httpClient.Do(req)
+	if err != nil {
+		return ip, err
 	}
 	defer r.Body.Close()
+	if r.StatusCode != http.StatusOK {
+		return ip, fmt.Errorf("attempt to get my IP returned %s", r.Status)
+	}
 	var msg struct {
 		Ip netip.Addr
 	}
@@ -44,9 +50,9 @@ func myIP(u string) (ip netip.Addr, err error) {
 	return msg.Ip, nil
 }
 
-// updateDomain updates the DNS A record for domain to point to ip.
-func updateDomain(domain, recordType string, ip netip.Addr) error {
-	api, err := cloudflare.NewWithAPIToken(config.ApiKey)
+// updateDomain updates the DNS A or AAAA record for domain to point to ip.
+func updateDomain(apiKey, domain, recordType string, ip netip.Addr) error {
+	api, err := cloudflare.NewWithAPIToken(apiKey)
 	if err != nil {
 		return err
 	}
@@ -65,62 +71,66 @@ func updateDomain(domain, recordType string, ip netip.Addr) error {
 		if r.Content == ip.String() {
 			continue
 		}
-		log.Printf("Ip needs updating, currently %q, need to set to %q", r.Content, ip)
-
+		slog.Info("updating DNS record", "domain", domain, "from", r.Content, "to", ip)
 		r.Content = ip.String()
-		err := api.UpdateDNSRecord(zoneID, r.ID, r)
-		if err != nil {
+		if err := api.UpdateDNSRecord(zoneID, r.ID, r); err != nil {
 			return err
 		}
-		log.Println("Set", domain, "to", ip)
+		slog.Info("updated DNS record", "domain", domain, "ip", ip)
 	}
 	return nil
 }
 
-func loadConfig(fn string) error {
+func loadConfig(fn string) (Config, error) {
 	f, err := os.Open(fn)
 	if err != nil {
-		return err
+		return Config{}, err
 	}
 	defer f.Close()
-	return json.NewDecoder(f).Decode(&config)
+	var cfg Config
+	return cfg, json.NewDecoder(f).Decode(&cfg)
 }
 
 func main() {
 	cf := flag.String("cfg", "config.json", "config file")
 	flag.Parse()
-	err := loadConfig(*cf)
+
+	cfg, err := loadConfig(*cf)
 	if err != nil {
-		log.Fatal(err)
+		slog.Error("loading config", "err", err)
+		os.Exit(1)
 	}
 
-	ipv4, err := myIP(ipv4info)
+	ctx := context.Background()
+
+	ipv4, err := myIP(ctx, ipv4info)
 	if err != nil {
-		log.Fatal(err)
+		slog.Error("getting IPv4 address", "err", err)
+		os.Exit(1)
 	}
 	if !ipv4.Is4() {
-		log.Fatalln(ipv4, "is not an ipv4 address")
+		slog.Error("not an IPv4 address", "ip", ipv4)
+		os.Exit(1)
 	}
 
-	ipv6, err := myIP(ipv6info)
+	ipv6, err := myIP(ctx, ipv6info)
 	if err != nil {
-		log.Fatal(err)
+		slog.Error("getting IPv6 address", "err", err)
+		os.Exit(1)
 	}
 	if !ipv6.Is6() {
-		log.Fatalln(ipv6, "is not an ipv6 address")
+		slog.Error("not an IPv6 address", "ip", ipv6)
+		os.Exit(1)
 	}
 
-	log.Println("my ip is", ipv4, ipv6)
+	slog.Info("current IPs", "ipv4", ipv4, "ipv6", ipv6)
 
-	for _, domain := range config.Domains {
-		err := updateDomain(domain, "A", ipv4)
-		if err != nil {
-			log.Println(err)
+	for _, domain := range cfg.Domains {
+		if err := updateDomain(cfg.ApiKey, domain, "A", ipv4); err != nil {
+			slog.Error("updating A record", "domain", domain, "err", err)
 		}
-		err = updateDomain(domain, "AAAA", ipv6)
-		if err != nil {
-			log.Println(err)
+		if err := updateDomain(cfg.ApiKey, domain, "AAAA", ipv6); err != nil {
+			slog.Error("updating AAAA record", "domain", domain, "err", err)
 		}
-
 	}
 }
