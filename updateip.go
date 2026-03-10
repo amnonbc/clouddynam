@@ -68,6 +68,9 @@ func updateDomain(apiKey, domain, recordType string, ip netip.Addr) error {
 		return err
 	}
 	slog.Debug("found DNS records", "domain", domain, "type", recordType, "count", len(records))
+	if len(records) == 0 {
+		slog.Warn("no DNS records found, nothing to update", "domain", domain, "type", recordType)
+	}
 
 	for _, r := range records {
 		if r.Content == ip.String() {
@@ -126,25 +129,30 @@ func main() {
 
 	slog.Debug("fetching IPv6 address", "url", ipv6info)
 	ipv6, err := myIP(ctx, ipv6info)
+	hasIPv6 := err == nil && ipv6.Is6()
 	if err != nil {
-		slog.Error("getting IPv6 address", "err", err)
-		os.Exit(1)
+		slog.Warn("could not get IPv6 address, skipping AAAA updates", "err", err)
+	} else if !ipv6.Is6() {
+		slog.Warn("no IPv6 connectivity detected, skipping AAAA updates", "ip", ipv6)
+	} else {
+		slog.Debug("got IPv6 address", "ip", ipv6)
 	}
-	if !ipv6.Is6() {
-		slog.Error("not an IPv6 address", "ip", ipv6)
-		os.Exit(1)
-	}
-	slog.Debug("got IPv6 address", "ip", ipv6)
 
-	slog.Info("current IPs", "ipv4", ipv4, "ipv6", ipv6)
+	if hasIPv6 {
+		slog.Info("current IPs", "ipv4", ipv4, "ipv6", ipv6)
+	} else {
+		slog.Info("current IPs", "ipv4", ipv4)
+	}
 
 	for _, domain := range cfg.Domains {
-		slog.Debug("updating domain", "domain", domain, "records", []string{"A", "AAAA"})
+		slog.Debug("updating domain", "domain", domain)
 		if err := updateDomain(cfg.ApiKey, domain, "A", ipv4); err != nil {
 			slog.Error("updating A record", "domain", domain, "err", err)
 		}
-		if err := updateDomain(cfg.ApiKey, domain, "AAAA", ipv6); err != nil {
-			slog.Error("updating AAAA record", "domain", domain, "err", err)
+		if hasIPv6 {
+			if err := updateDomain(cfg.ApiKey, domain, "AAAA", ipv6); err != nil {
+				slog.Error("updating AAAA record", "domain", domain, "err", err)
+			}
 		}
 	}
 }
