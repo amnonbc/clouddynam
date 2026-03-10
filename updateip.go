@@ -61,14 +61,17 @@ func updateDomain(apiKey, domain, recordType string, ip netip.Addr) error {
 	if err != nil {
 		return err
 	}
+	slog.Debug("resolved zone", "domain", domain, "zoneID", zoneID)
 
 	records, err := api.DNSRecords(zoneID, cloudflare.DNSRecord{Name: domain, Type: recordType})
 	if err != nil {
 		return err
 	}
+	slog.Debug("found DNS records", "domain", domain, "type", recordType, "count", len(records))
 
 	for _, r := range records {
 		if r.Content == ip.String() {
+			slog.Debug("record already up to date", "domain", domain, "type", recordType, "ip", ip)
 			continue
 		}
 		slog.Info("updating DNS record", "domain", domain, "from", r.Content, "to", ip)
@@ -93,8 +96,14 @@ func loadConfig(fn string) (Config, error) {
 
 func main() {
 	cf := flag.String("cfg", "config.json", "config file")
+	debug := flag.Bool("debug", false, "enable debug logging")
 	flag.Parse()
 
+	if *debug {
+		slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug})))
+	}
+
+	slog.Debug("loading config", "file", *cf)
 	cfg, err := loadConfig(*cf)
 	if err != nil {
 		slog.Error("loading config", "err", err)
@@ -103,6 +112,7 @@ func main() {
 
 	ctx := context.Background()
 
+	slog.Debug("fetching IPv4 address", "url", ipv4info)
 	ipv4, err := myIP(ctx, ipv4info)
 	if err != nil {
 		slog.Error("getting IPv4 address", "err", err)
@@ -112,7 +122,9 @@ func main() {
 		slog.Error("not an IPv4 address", "ip", ipv4)
 		os.Exit(1)
 	}
+	slog.Debug("got IPv4 address", "ip", ipv4)
 
+	slog.Debug("fetching IPv6 address", "url", ipv6info)
 	ipv6, err := myIP(ctx, ipv6info)
 	if err != nil {
 		slog.Error("getting IPv6 address", "err", err)
@@ -122,10 +134,12 @@ func main() {
 		slog.Error("not an IPv6 address", "ip", ipv6)
 		os.Exit(1)
 	}
+	slog.Debug("got IPv6 address", "ip", ipv6)
 
 	slog.Info("current IPs", "ipv4", ipv4, "ipv6", ipv6)
 
 	for _, domain := range cfg.Domains {
+		slog.Debug("updating domain", "domain", domain, "records", []string{"A", "AAAA"})
 		if err := updateDomain(cfg.ApiKey, domain, "A", ipv4); err != nil {
 			slog.Error("updating A record", "domain", domain, "err", err)
 		}
